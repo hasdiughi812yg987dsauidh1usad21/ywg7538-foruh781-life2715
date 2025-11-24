@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Robbery Search Minigame</title>
+
+<link rel="stylesheet" href="inventory.css">
+
+<style>
+
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #111;
+  color: white;
+  overflow: hidden;
+}
+
+#fullscreen-image {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: -1;
+}
+
+
+#game {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  z-index: 3;
+}
+
+.key-box { display: flex; font-size: 22px; margin-bottom: 10px; }
+.key { background: white; color: black; padding: 6px 14px; border-radius: 4px; }
+
+
+#progress-container {
+  position: absolute;
+  bottom: 30px;
+  right: 30px;
+  background: rgba(0,0,0,0.6);
+  padding: 6px 10px;
+  display: none;
+  z-index: 3;
+  min-width: 200px;
+}
+
+#progress-bar-bg { flex-grow: 1; height: 10px; background: rgba(255,255,255,0.2); }
+#progress-bar { height: 100%; width: 0%; background: #e02727; }
+
+
+#timer {
+  position: absolute;
+  top: 20px;
+  right: 40px;
+  font-size: 22px;
+  font-weight: bold;
+  display: none;
+  z-index: 3;
+}
+
+
+#lootPrompt {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  background: rgba(0,0,0,0.7);
+  padding: 6px 12px;
+  border: 2px solid #4ab3ff;
+  border-radius: 6px;
+  font-size: 20px;
+  display: none;
+  z-index: 4;
+}
+
+</style>
+</head>
+
+<body>
+
+<img id="fullscreen-image" src="crate.png">
+
+
+<div id="game">
+    <div id="start-message">
+      Press <span class="key">E</span> to <span class="orange">break open</span> the <span class="yellow">Container</span>
+    </div>
+
+    <div id="instructions" style="display:none;">
+      <div class="key-box">
+        <div id="current-key" class="key">?</div>
+        <span>to break in</span>
+      </div>
+      <div class="key-box">
+        <div class="key">Esc</div>
+        <span>to cancel</span>
+      </div>
+    </div>
+</div>
+
+<div id="progress-container">
+  <span>Break in</span>
+  <div id="progress-bar-bg"><div id="progress-bar"></div></div>
+</div>
+
+<div id="timer">00:00:000</div>
+
+
+<div id="lootPrompt">Press E to loot container</div>
+
+
+<div id="inventoryOverlay"></div>
+
+<script src="inventory.js"></script>
+
+<script>
+
+const allKeys = [
+  {name:"W", code:"KeyW"},
+  {name:"A", code:"KeyA"},
+  {name:"S", code:"KeyS"},
+  {name:"D", code:"KeyD"},
+  {name:"↑", code:"ArrowUp"},
+  {name:"↓", code:"ArrowDown"},
+  {name:"←", code:"ArrowLeft"},
+  {name:"→", code:"ArrowRight"},
+];
+
+let currentPair = [];
+let showingIndex = 0;
+let pairInterval = null;
+
+
+function pickPair(){
+    let first = allKeys[Math.floor(Math.random()*allKeys.length)];
+    let second;
+    do second = allKeys[Math.floor(Math.random()*allKeys.length)];
+    while(second.code === first.code);
+
+    currentPair = [first, second];
+    showingIndex = 0;
+    document.getElementById("current-key").textContent = currentPair[0].name;
+}
+
+
+let timerInterval = null;
+let startTime = 0;
+
+function startTimer(){
+    startTime = Date.now();
+    timerInterval = setInterval(() => {
+        let ms = Date.now() - startTime;
+        let m = String(Math.floor(ms/60000)).padStart(2,"0");
+        let s = String(Math.floor((ms%60000)/1000)).padStart(2,"0");
+        let ms3 = String(ms%1000).padStart(3,"0");
+        document.getElementById("timer").textContent = `${m}:${s}:${ms3}`;
+    }, 50);
+}
+
+function stopTimer(){ clearInterval(timerInterval); }
+
+
+let running = false;
+let progress = 0;
+
+function updateProgress(delta){
+    progress = Math.max(0, Math.min(100, progress + delta));
+    document.getElementById("progress-bar").style.width = progress + "%";
+
+    if(progress >= 100){
+        finishMinigame();
+    }
+}
+
+
+function finishMinigame(){
+    running = false;
+    clearInterval(pairInterval);
+
+    document.getElementById("instructions").style.display = "none";
+    document.getElementById("progress-container").style.display = "none";
+
+   
+    document.getElementById("lootPrompt").style.display = "block";
+}
+
+
+document.addEventListener("keydown", (e)=>{
+
+   
+    if(!running && progress === 0 && e.code === "KeyE"){
+        running = true;
+
+        document.getElementById("start-message").style.display = "none";
+        document.getElementById("instructions").style.display = "block";
+        document.getElementById("progress-container").style.display = "flex";
+        document.getElementById("timer").style.display = "block";
+
+        pickPair();
+        startTimer();
+
+        pairInterval = setInterval(pickPair, 5000);
+        return;
+    }
+
+   
+    if(running && e.code === "Escape"){
+        running = false;
+        clearInterval(pairInterval);
+        stopTimer();
+
+        progress = 0;
+        document.getElementById("progress-bar").style.width = "0%";
+
+        document.getElementById("instructions").style.display = "none";
+        document.getElementById("progress-container").style.display = "none";
+        document.getElementById("start-message").style.display = "block";
+        return;
+    }
+
+   
+    if(progress === 100 && e.code === "KeyE"){
+        document.getElementById("lootPrompt").style.display = "none";
+        openInventory(); 
+        return;
+    }
+
+
+    if(running){
+        const expected = currentPair[showingIndex];
+
+        if(e.code === expected.code){
+            updateProgress(0.15);
+            showingIndex = showingIndex === 0 ? 1 : 0;
+            document.getElementById("current-key").textContent =
+              currentPair[showingIndex].name;
+        } else {
+            updateProgress(-0.05);
+        }
+    }
+});
+</script>
+
+</body>
+</html>
