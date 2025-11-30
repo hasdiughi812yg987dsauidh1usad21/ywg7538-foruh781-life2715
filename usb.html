@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>USB Minigame</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@800&display=swap" rel="stylesheet" />
+  <script crossorigin src="https://unpkg.com/react@17/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://unpkg.com/animejs@3.2.2/lib/anime.min.js"></script>
+
+  <style>
+    :root{
+      --part-width: 30px;
+      --part-height: 100px;
+    }
+
+    body{
+      margin: 0;
+      top: 0;
+      position: absolute;
+      color: #fff;
+      background-color: #2b0075;
+      font-family: 'Orbitron', sans-serif;
+    }
+
+    .content {
+      display: flex;
+      flex-direction: column;
+      width: 100vw;
+      text-align: center;
+    }
+
+    .top-contents hr {
+      border: 2px solid;
+    }
+    .top-contents hr.yellow {
+      transform: translateY(40px);
+      border-color: yellow;
+    }
+    .top-contents hr.orange {
+      transform: translateY(40px);
+      border-color: orange;
+    }
+
+    .top-contents .title {
+      transform: translateY(-16px);
+      background-color: #101010;
+      font-size: 3em;
+      width: 320px;
+      margin: auto;
+    }
+
+    .top-contents .catch-phrase {
+      margin: 0;
+      color: yellow;
+    }
+
+    .container {
+      width: 80%;
+      max-width: 500px;
+      margin: auto;
+    }
+
+    .crack-container {
+      transform: translateY(-25px);
+      margin: 2px;
+    }
+
+    .white-bar-container {
+      background-color: #202020;
+      border: 3px solid red;
+      min-height: 500px;
+      display: grid;
+      grid-template-columns: auto auto auto auto auto auto auto; /* 7 pins */
+    }
+
+    .crack-slider {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      height: calc((var(--part-height) * 2) + var(--part-height) / 2);
+    }
+
+    .crack-slider .core {
+      height: calc(var(--part-height) / 4);
+    }
+
+    .crack-slider .part {
+      background-color: white;
+      width: var(--part-width);
+      height: var(--part-height);
+    }
+
+    .crack-slider.active .part {
+      border: 4px solid #e6e600;
+      width: calc(var(--part-width) - 8px);
+      height: calc(var(--part-height) - 8px);
+    }
+
+    .target-bar {
+      width: calc(500px - 8px);
+      height: 25px;
+      background-color: red;
+      position: relative;
+      top: 250px;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="miniGame"></div>
+
+  <script type="text/babel">
+    const pixelTolerance = 25;
+    const initialAnimationTime = 1000;
+    let animations = [];
+
+    const animationTemplate = {
+      autoplay: true,
+      translateY: 275,
+      loop: true,
+      easing: 'easeInOutSine',
+      direction: 'alternate'
+    };
+
+    const createAnimationObject = (id, index) => {
+      return anime({
+        targets: id,
+        duration: (initialAnimationTime - (100 * index)),
+        ...animationTemplate
+      });
+    };
+
+
+    const getCurrentTranslateY = (el) => {
+      const t = window.getComputedStyle(el).transform;
+      if (!t || t === "none") return 0;
+
+      if (typeof DOMMatrixReadOnly !== "undefined") {
+        const m = new DOMMatrixReadOnly(t);
+        return m.m42;
+      }
+
+      const match = t.match(/matrix\(([^)]+)\)/);
+      if (!match) return 0;
+      const parts = match[1].split(",").map(Number);
+      return parts[5] || 0;
+    };
+
+    const CrackSlider = (props) => {
+      const callCheckPos = props.isActive ? props.checkPosition : () => {};
+      return (
+        <div
+          className={`crack-slider ${props.isActive ? 'active' : ''}`}
+          id={`slider-${props.index}`}
+          tabIndex={props.isActive ? 1 : -1}
+          onClick={callCheckPos}
+          onKeyPress={callCheckPos}
+        >
+          <div className='top part'/>
+          <div className='core' ref={props.reactRef} />
+          <div className='bottom part'/>
+        </div>
+      );
+    };
+
+    const CrackContainer = () => {
+      const [captured, updateSliders] = React.useState(
+        [false, false, false, false, false, false, false] 
+      );
+
+      React.useEffect(() => {
+        animations = captured.map((item, index) => createAnimationObject(`#slider-${index}`, index));
+      }, []);
+
+      const coreRefs = captured.map(slider => React.createRef());
+      const targetRef = React.createRef();
+      const [activeIndex, setActiveIndex] = React.useState(0);
+
+      const checkPosition = () => {
+        const coreRefDiv = coreRefs[activeIndex];
+        const coreDimensions = coreRefDiv.current.getBoundingClientRect();
+        const targetDimensions = targetRef.current.getBoundingClientRect();
+
+        const coreCenterY = coreDimensions.top + coreDimensions.height / 2;
+        const targetCenterY = targetDimensions.top + targetDimensions.height / 2;
+
+        const closeEnough = Math.abs(coreCenterY - targetCenterY) <= pixelTolerance;
+
+        if (closeEnough) {
+          console.log('Got it 😎👍');
+
+          animations[activeIndex].pause();
+
+          const sliderEl = document.querySelector(`#slider-${activeIndex}`);
+          const delta = targetCenterY - coreCenterY;
+          const currentTY = getCurrentTranslateY(sliderEl);
+          anime.set(sliderEl, { translateY: currentTY + delta });
+
+          setActiveIndex(activeIndex + 1);
+        } else {
+          console.log('Nope 😭');
+          if (activeIndex > 0) {
+            animations[activeIndex - 1].play();
+            setActiveIndex(activeIndex - 1);
+          }
+        }
+      };
+
+      return (
+        <div className='crack-container'>
+          <div className='target-bar' ref={targetRef} />
+          <div className="white-bar-container">
+            {captured.map((slider, index) => {
+              return (
+                <CrackSlider
+                  key={index}
+                  isMoving={slider}
+                  index={index}
+                  isActive={index === activeIndex}
+                  updateSliders={updateSliders}
+                  reactRef={coreRefs[index]}
+                  checkPosition={checkPosition}
+                />
+              );
+            })}
+          </div>
+        </div>
+      );
+    };
+
+    const Container = () => {
+      return (
+        <div className='content'>
+          <div className='top-contents'>
+            <hr className='yellow'/>
+            <hr className='orange'/>
+            <h3 className="title">Data Crack </h3>
+            <p className='catch-phrase'>Selling your secrets since 1996</p>
+          </div>
+          <div className='container'>
+            <CrackContainer />
+          </div>
+          <p>Tap or Click on the highlighted bar when its over the red bar.</p>
+        </div>
+      );
+    };
+
+    const Root = () => {
+      return <Container />;
+    };
+
+    ReactDOM.render(Root(), document.getElementById('miniGame'));
+  </script>
+</body>
+</html>
