@@ -116,7 +116,7 @@
 
   <script type="text/babel">
     const pixelTolerance = 25;
-    const initialAnimationTime = 1000;
+    const initialAnimationTime = 950;
     let animations = [];
 
     const animationTemplate = {
@@ -192,7 +192,7 @@
         const closeEnough = Math.abs(coreCenterY - targetCenterY) <= pixelTolerance;
 
         if (closeEnough) {
-          console.log('Got it 😎👍');
+          console.log('Got it');
 
           animations[activeIndex].pause();
 
@@ -203,7 +203,7 @@
 
           setActiveIndex(activeIndex + 1);
         } else {
-          console.log('Nope 😭');
+          console.log('Nope');
           if (activeIndex > 0) {
             animations[activeIndex - 1].play();
             setActiveIndex(activeIndex - 1);
