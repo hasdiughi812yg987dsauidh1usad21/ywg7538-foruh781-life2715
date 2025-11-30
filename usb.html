@@ -116,7 +116,7 @@
 
   <script type="text/babel">
     const pixelTolerance = 25;
-    const initialAnimationTime = 950;
+    const initialAnimationTime = 1000;
     let animations = [];
 
     const animationTemplate = {
@@ -152,14 +152,11 @@
     };
 
     const CrackSlider = (props) => {
-      const callCheckPos = props.isActive ? props.checkPosition : () => {};
       return (
         <div
           className={`crack-slider ${props.isActive ? 'active' : ''}`}
           id={`slider-${props.index}`}
           tabIndex={props.isActive ? 1 : -1}
-          onClick={callCheckPos}
-          onKeyPress={callCheckPos}
         >
           <div className='top part'/>
           <div className='core' ref={props.reactRef} />
@@ -169,7 +166,7 @@
     };
 
     const CrackContainer = () => {
-      const [captured, updateSliders] = React.useState(
+      const [captured] = React.useState(
         [false, false, false, false, false, false, false] 
       );
 
@@ -177,7 +174,7 @@
         animations = captured.map((item, index) => createAnimationObject(`#slider-${index}`, index));
       }, []);
 
-      const coreRefs = captured.map(slider => React.createRef());
+      const coreRefs = captured.map(() => React.createRef());
       const targetRef = React.createRef();
       const [activeIndex, setActiveIndex] = React.useState(0);
 
@@ -192,8 +189,6 @@
         const closeEnough = Math.abs(coreCenterY - targetCenterY) <= pixelTolerance;
 
         if (closeEnough) {
-          console.log('Got it');
-
           animations[activeIndex].pause();
 
           const sliderEl = document.querySelector(`#slider-${activeIndex}`);
@@ -203,13 +198,20 @@
 
           setActiveIndex(activeIndex + 1);
         } else {
-          console.log('Nope');
           if (activeIndex > 0) {
             animations[activeIndex - 1].play();
             setActiveIndex(activeIndex - 1);
           }
         }
       };
+
+
+      React.useEffect(() => {
+        const gameArea = document.getElementById("miniGame");
+        const clickHandler = () => checkPosition();
+        gameArea.addEventListener("click", clickHandler);
+        return () => gameArea.removeEventListener("click", clickHandler);
+      }, [checkPosition]);
 
       return (
         <div className='crack-container'>
@@ -219,10 +221,8 @@
               return (
                 <CrackSlider
                   key={index}
-                  isMoving={slider}
                   index={index}
                   isActive={index === activeIndex}
-                  updateSliders={updateSliders}
                   reactRef={coreRefs[index]}
                   checkPosition={checkPosition}
                 />
@@ -245,7 +245,7 @@
           <div className='container'>
             <CrackContainer />
           </div>
-          <p>Tap or Click on the highlighted bar when its over the red bar.</p>
+          <p>Tap or Click anywhere inside the game.</p>
         </div>
       );
     };
